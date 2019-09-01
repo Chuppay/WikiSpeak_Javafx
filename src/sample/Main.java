@@ -22,6 +22,8 @@ import java.io.*;
 import java.rmi.server.ExportException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -82,6 +84,7 @@ public class Main extends Application {
         } catch (Exception e){
             e.printStackTrace();
         }
+
         createMainMenuScene();
         createCreationScene();
         createListScene();
@@ -283,28 +286,18 @@ public class Main extends Application {
         System.out.println("Search: " + searchTerm + "\nCreation: " + creationName);
 
         try {
-            ProcessBuilder wikit = new ProcessBuilder("wikit", searchTerm);
-            wikit.directory(new File(_home + "/Documents"));
-            Process wikitProcess = wikit.start();
+            WikiWorker wikit = new WikiWorker(searchTerm);
+            wikit.start();
+            wikit.join();
+            String info = wikit.getInfo();
 
-            BufferedReader stdout = new BufferedReader(new InputStreamReader(wikitProcess.getInputStream()));
-            BufferedReader stderr = new BufferedReader(new InputStreamReader(wikitProcess.getErrorStream()));
-
-            int exitStatus = wikitProcess.waitFor();
-            String info = stdout.readLine();
-
-            if (info.equals(searchTerm + " not found :^(")){
-                popUpWindow.popUP("ERROR","Search term not found.");
+            if (info.equals("")){
                 return;
             }
 
             String[] userPref = popUpWindow.getSentences(info);
 
-            if (exitStatus == 1) {
-            }
-                while ((info = stderr.readLine()) != null) {
-                    System.err.println(info);
-            }
+            CreationWorker slave = new CreationWorker(searchTerm,creationName,userPref);
 
             if (Pattern.compile("[*<>\\\\|\"_^/:]").matcher(creationName).find()) {
                 popUpWindow.popUP("ERROR", "Please choose a name without any of the following characters\n" +
@@ -320,50 +313,10 @@ public class Main extends Application {
                     ProcessBuilder deleteCreation = new ProcessBuilder("bash", "-c", command);
                     deleteCreation.directory(new File(_home + "Documents/WikiSpeak"));
                     popUpWindow.popUP("Overridden", creationName + " has been overridden.");
-                    createCreation(searchTerm,creationName,userPref);
                 }
             }
-            createCreation(searchTerm,creationName,userPref);
+            slave.run();
             start(_stage);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void createCreation(String searchTerm, String creationName,String[] info) {
-        try {
-            String dir = _home + _sep + "Documents"+_sep+"WikiSpeak" + _sep + creationName + _sep;
-
-            String command = "mkdir " + creationName + " ; ";
-            ProcessBuilder createCreation = new ProcessBuilder("bash", "-c", command);
-            createCreation.directory(new File(_home + _sep + "Documents" + _sep +"WikiSpeak"));
-            Process process = createCreation.start();
-            process.waitFor();
-
-            File file = new File(dir + searchTerm+".txt");
-            file.createNewFile();
-            FileWriter fw = new FileWriter(dir + searchTerm+".txt");
-            for (int i =0;i<info.length;i++){
-                fw.write(info[i] + ". ");
-            }
-            fw.close();
-
-            File script = new File(dir+"Script.sh");
-            script.createNewFile();
-            FileWriter scriptWriter = new FileWriter(dir+"Script.sh");
-            scriptWriter.write("#!/bin/bash \n");
-            scriptWriter.write("cat  '" + dir + searchTerm+".txt' | text2wave -o " + dir + searchTerm+".wav \n" );
-            scriptWriter.write("LENGTH=\"soxi -D " + dir + searchTerm+".wav\"\n");
-            scriptWriter.write("ffmpeg -f lavfi -i color=c=blue:s=500x500:d=`$LENGTH` -vf \"\n" +
-                    "drawtext=fontfile=*.ttf:fontsize=30: fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:text='" +
-                    searchTerm + "\" " + dir + searchTerm+"vid.mp4 ; \n");
-            scriptWriter.write("ffmpeg -i "+ dir + searchTerm+"vid.mp4 -i " + dir + searchTerm+".wav -strict -2 " +
-                    dir +"creation.mp4 \n");
-            scriptWriter.close();
-
-            Process p = Runtime.getRuntime().exec("bash "+dir+"Script.sh");
-            p.waitFor();
-
         } catch (Exception e) {
             e.printStackTrace();
         }

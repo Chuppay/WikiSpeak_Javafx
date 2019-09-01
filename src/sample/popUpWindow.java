@@ -93,7 +93,8 @@ public class popUpWindow {
 
         Button ok = new Button("Ok");
         ok.setOnAction(e ->{
-            int numSentences = Integer.parseInt(select.getValue().substring(0,1));
+            String[] number = select.getValue().split("\\.");
+            int numSentences = Integer.parseInt(number[0]);
             _modInfo = Arrays.copyOfRange(separateSentences,0,numSentences -1);
             _stage.close();
         });
@@ -109,4 +110,6 @@ public class popUpWindow {
 
         return _modInfo;
     }
+
+
 }
