@@ -49,7 +49,7 @@ public class Main extends Application {
 
     public void intialise(){
         _home = System.getProperty("user.home");
-        _creations = new ArrayList();
+        _creations = new ArrayList<String>();
         _sep = System.getProperty("file.separator");
         try{
             ProcessBuilder makeDirectory = new ProcessBuilder("mkdir","WikiSpeak");
@@ -228,7 +228,28 @@ public class Main extends Application {
         AnchorPane.setRightAnchor(mediaView,0.0);
         AnchorPane.setBottomAnchor(mediaView,100.0);
 
-        layout.getChildren().addAll(mediaView);
+        Button back = new Button("Back");
+        AnchorPane.setLeftAnchor(back,50.0);
+        AnchorPane.setBottomAnchor(back,50.0);
+        back.setPrefSize(100,20);
+        back.setOnAction(e -> {
+            player.stop();
+            _stage.setScene(_mainMenu);
+        });
+
+        Button pp = new Button("Play/Pause");
+        AnchorPane.setRightAnchor(pp,50.0);
+        AnchorPane.setBottomAnchor(pp,50.0);
+        pp.setPrefSize(100,20);
+        pp.setOnAction(e -> {
+            if (player.getStatus() == MediaPlayer.Status.PAUSED){
+                player.play();
+            } else {
+                player.pause();
+            }
+        });
+
+        layout.getChildren().addAll(mediaView,pp,back);
 
         Scene scene = new Scene(layout,500,600);
         _stage.setScene(scene);
@@ -274,6 +295,7 @@ public class Main extends Application {
 
             if (info.equals(searchTerm + " not found :^(")){
                 popUpWindow.popUP("ERROR","Search term not found.");
+                return;
             }
 
             String[] userPref = popUpWindow.getSentences(info);
